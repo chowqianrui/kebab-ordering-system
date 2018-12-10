@@ -1,2 +1,761 @@
 b0m0b
-c8x0b
+
+
+#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
+
+#include "linkedlist.h"
+#include "kebab.h"
+#include "grill.h"
+
+#include <string>
+#include <vector>
+
+// The tests below leak memory, but that's probably okay.
+
+TEST_CASE("Kebab.addIngredient", "[Kebab][addIngredient]") {
+  Kebab k;
+  std::string contents;
+
+  SECTION("empty skewer produces empty string") {
+    contents = k.listIngredients();
+    assert(contents == "");
+  }
+
+  SECTION("invalid ingredients not added") {
+    k.addIngredient('V');
+    k.addIngredient('%');
+    k.addIngredient('\n');
+    contents = k.listIngredients();
+    assert(contents == "");
+  }
+
+  SECTION("insertion order is preserved when adding ingredients") {
+    k.addIngredient('b');
+    k.addIngredient('B');
+    k.addIngredient('t');
+    k.addIngredient('m');
+    k.addIngredient('p');
+    contents = k.listIngredients();
+    assert(((contents == "bBtmp") || (contents == "pmtBb")));
+  }
+
+  SECTION("number of ingredients does not exceed SKEWER_SIZE") {
+    k.addIngredient('b');
+    k.addIngredient('B');
+    k.addIngredient('t');
+    k.addIngredient('T');
+    k.addIngredient('m');
+    k.addIngredient('M');
+    k.addIngredient('p');
+    k.addIngredient('P');
+    k.addIngredient('s');
+    k.addIngredient('S');
+    contents = k.listIngredients();
+    assert(((contents == "bBtTmMpP") || (contents == "PpMmTtBb")));
+  }
+}
+
+TEST_CASE("Kebab.buildKebab", "[Kebab][buildKebab]") {
+  Kebab k;
+  std::string contents;
+
+  SECTION("empty string input produces empty string") {
+    k.buildKebab("");
+    contents = k.listIngredients();
+    assert(contents == "");
+  }
+
+  SECTION("invalid ingredients not added") {
+    k.buildKebab("be7b!");
+    contents = k.listIngredients();
+    assert(contents == "bb");
+  }
+
+  SECTION("ingredient order of input string is preserved") {
+    k.buildKebab("bBtmp");
+    contents = k.listIngredients();
+    assert(((contents == "bBtmp") || (contents == "pmtBb")));
+  }
+
+  SECTION("number of ingredients does not exceed SKEWER_SIZE") {
+    k.buildKebab("bBtTmMpPsS");
+    contents = k.listIngredients();
+    assert(((contents == "bBtTmMpP") || (contents == "PpMmTtBb")));
+  }
+}
+
+TEST_CASE("Kebab.numMeats", "[Kebab][numMeats]") {
+  Kebab k1;  // empty kebab
+  Kebab k2;  // non-empty, contains no meat
+  Kebab k3;  // contains a single meat as only ingredient
+  Kebab k4;  // contains a single meat among multiple ingredients
+  Kebab k5;  // contains multiple (3) meats as only ingredient
+  Kebab k6;  // contains multiple (4) meats among multiple ingredients
+  Kebab k7;  // contains the maximum number (8) of meats
+
+              // set up each Kebab
+              // use addIngredient in case of errors with buildKebab
+  k2.addIngredient('t');  k2.addIngredient('M');  k2.addIngredient('p');
+  k2.addIngredient('S');  k2.addIngredient('T');
+
+  k3.addIngredient('B');
+
+  k4.addIngredient('T');  k4.addIngredient('m');  k4.addIngredient('P');
+  k4.addIngredient('b');  k4.addIngredient('S');
+
+  k5.addIngredient('b');  k5.addIngredient('B');  k5.addIngredient('B');
+
+  k6.addIngredient('S');  k6.addIngredient('P');  k6.addIngredient('b');
+  k6.addIngredient('t');  k6.addIngredient('B');  k6.addIngredient('b');
+  k6.addIngredient('M');  k6.addIngredient('B');
+
+  k7.addIngredient('b');  k7.addIngredient('b');  k7.addIngredient('B');
+  k7.addIngredient('b');  k7.addIngredient('B');  k7.addIngredient('B');
+  k7.addIngredient('b');  k7.addIngredient('B');
+
+  SECTION("correctly answers when there are no meat items") {
+    assert(k1.numMeats() == 0);
+    assert(k2.numMeats() == 0);
+  }
+
+  SECTION("Correctly answers when there is exactly 1 meat item") {
+    assert(k3.numMeats() == 1);
+    assert(k4.numMeats() == 1);
+  }
+
+  SECTION("Correctly answers when there are more than 1 meat item") {
+    assert(k5.numMeats() == 3);
+    assert(k6.numMeats() == 4);
+    assert(k7.numMeats() == 8);
+  }
+}
+
+TEST_CASE("Kebab.hasSameIngredients", "[Kebab][hasSameIngredients]") {
+  // wanted kebabs
+  Kebab k1;  // b
+  Kebab k2;  // bBt
+  Kebab k3;  // tm
+  Kebab k4;  // bmss
+  Kebab k5;  // Pss
+
+              // available kebabs
+  Kebab k6;  // spTmbS
+  Kebab k7;  // tmMsps
+  Kebab k8;  // pPbTPB
+  Kebab k9;  // mSpbBM
+  Kebab k10; // mMmsmMBS
+  Kebab k11; // (empty)
+
+              // set up each Kebab
+              // using addIngredient in case of errors with buildKebab
+  k1.addIngredient('b');
+
+  k2.addIngredient('b');  k2.addIngredient('B');  k2.addIngredient('t');
+
+  k3.addIngredient('t');  k3.addIngredient('m');
+
+  k4.addIngredient('b');  k4.addIngredient('m');
+  k4.addIngredient('s');  k4.addIngredient('s');
+
+  k5.addIngredient('P');  k5.addIngredient('s');  k5.addIngredient('s');
+
+  k6.addIngredient('s');  k6.addIngredient('p');  k6.addIngredient('T');
+  k6.addIngredient('m');  k6.addIngredient('b');  k6.addIngredient('S');
+
+  k7.addIngredient('t');  k7.addIngredient('m');  k7.addIngredient('M');
+  k7.addIngredient('s');  k7.addIngredient('p');  k7.addIngredient('s');
+
+  k8.addIngredient('p');  k8.addIngredient('P');  k8.addIngredient('b');
+  k8.addIngredient('T');  k8.addIngredient('P');  k8.addIngredient('B');
+
+  k9.addIngredient('m');  k9.addIngredient('S');  k9.addIngredient('p');
+  k9.addIngredient('b');  k9.addIngredient('B');  k9.addIngredient('M');
+
+  k10.addIngredient('m');  k10.addIngredient('M');  k10.addIngredient('m');
+  k10.addIngredient('s');  k10.addIngredient('m');  k10.addIngredient('M');
+  k10.addIngredient('B');  k10.addIngredient('S');
+
+  SECTION("does not match if missing ingredients") {
+    assert(!k11.hasSameIngredients(k1));
+    assert(!k11.hasSameIngredients(k2));
+    assert(!k11.hasSameIngredients(k3));
+    assert(!k11.hasSameIngredients(k4));
+    assert(!k11.hasSameIngredients(k5));
+
+    assert(!k6.hasSameIngredients(k2));
+    assert(!k7.hasSameIngredients(k1));
+    assert(!k7.hasSameIngredients(k2));
+    assert(!k7.hasSameIngredients(k4));
+    assert(!k8.hasSameIngredients(k3));
+    assert(!k8.hasSameIngredients(k4));
+    assert(!k8.hasSameIngredients(k5));
+    assert(!k9.hasSameIngredients(k2));
+    assert(!k9.hasSameIngredients(k3));
+    assert(!k9.hasSameIngredients(k4));
+    assert(!k9.hasSameIngredients(k5));
+    assert(!k10.hasSameIngredients(k2));
+    assert(!k10.hasSameIngredients(k3));
+    assert(!k10.hasSameIngredients(k5));
+  }
+
+  SECTION("matches if all requested ingredients present") {
+    assert(k6.hasSameIngredients(k1));
+    assert(k6.hasSameIngredients(k3));
+    assert(k6.hasSameIngredients(k4));
+    assert(k6.hasSameIngredients(k5));
+    assert(k7.hasSameIngredients(k3));
+    assert(k7.hasSameIngredients(k5));
+    assert(k8.hasSameIngredients(k1));
+    assert(k8.hasSameIngredients(k2));
+    assert(k9.hasSameIngredients(k1));
+    assert(k10.hasSameIngredients(k1));
+    assert(k10.hasSameIngredients(k4));
+  }
+}
+
+TEST_CASE("LinkedList", "[LinkedList]") {
+    LinkedList emptyList;
+
+    LinkedList oneItemList;
+
+    Kebab *item = new Kebab();
+    item->addIngredient('b');
+    item->addIngredient('p');
+    item->addIngredient('m');
+
+    oneItemList.insertFront(item);
+
+    SECTION("starts out empty") {
+        assert(emptyList.size() == 0);
+        assert(emptyList.isEmpty());
+    }
+
+    SECTION("copy constructor deep copies the list") {
+        LinkedList copiedList(oneItemList);
+
+        assert(copiedList.size() == 1);
+        assert(!copiedList.isEmpty());
+        assert(copiedList.contains(*item));
+        assert(!copiedList.elementAt(0) == item);
+        assert(copiedList.elementAt(0)->listIngredients() == item->listIngredients());
+    }
+
+    SECTION("assignment operator copies a list") {
+        LinkedList copiedList;
+        copiedList.operator=(oneItemList);
+
+        assert(copiedList.size() == 1);
+        assert(!copiedList.isEmpty());
+        assert(copiedList.contains(*item));
+        assert(!copiedList.elementAt(0) == item);
+        assert(copiedList.elementAt(0)->listIngredients() == item->listIngredients());
+    }
+
+    SECTION("assignment operator is noop if called on itself") {
+        oneItemList.operator=(oneItemList);
+
+        assert(oneItemList.size() == 1);
+        assert(oneItemList.elementAt(0) == item);
+    }
+}
+
+TEST_CASE("LinkedList.insertAt", "[LinkedList][insertAt]") {
+    LinkedList list;
+
+    Kebab *item1 = new Kebab();
+    item1->addIngredient('b');
+    item1->addIngredient('p');
+    item1->addIngredient('m');
+
+    Kebab *item2 = new Kebab();
+    item2->addIngredient('m');
+    item2->addIngredient('m');
+    item2->addIngredient('m');
+
+    Kebab *item3 = new Kebab();
+    item2->addIngredient('p');
+    item3->addIngredient('p');
+    item3->addIngredient('p');
+
+    SECTION("returns false with an invalid index") {
+        assert(!list.insertAt(item1, 100));
+        assert(list.isEmpty());
+    }
+
+    SECTION("inserts into the front of an empty list") {
+        assert(list.insertAt(item1, 0));
+
+        assert(list.size() == 1);
+        assert(!list.isEmpty());
+
+        assert(list.contains(*item1));
+        assert(list.elementAt(0) == item1);
+    }
+
+    SECTION("inserts before specified element") {
+        list.insertFront(item1);
+        
+        assert(list.insertAt(item2, 0));
+
+        assert(list.size() == 2);
+        assert(list.elementAt(0) == item2);
+        assert(list.elementAt(1) == item1);
+    }
+
+    SECTION("inserts between elements") {
+        list.insertFront(item1);
+        list.insertFront(item2);
+        
+        assert(list.insertAt(item3, 1));
+
+        assert(list.size() == 3);
+        assert(list.elementAt(0) == item2);
+        assert(list.elementAt(1) == item3);
+        assert(list.elementAt(2) == item1);
+    }
+}
+
+TEST_CASE("LinkedList.removeAt", "[LinkedList][removeAt]") {
+    LinkedList list;
+    
+    Kebab *item1 = new Kebab();
+    item1->addIngredient('b');
+    item1->addIngredient('p');
+    item1->addIngredient('m');
+
+    Kebab *item2 = new Kebab();
+    item2->addIngredient('m');
+    item2->addIngredient('m');
+    item2->addIngredient('m');
+
+    Kebab *item3 = new Kebab();
+    item2->addIngredient('p');
+    item3->addIngredient('p');
+    item3->addIngredient('p');
+
+    list.insertFront(item1);
+    list.insertFront(item2);
+    list.insertFront(item3);
+
+    SECTION("removing an invalid element produces null") {
+        assert(list.removeAt(100) == nullptr);
+    }
+
+    SECTION("removing the first element results in a list with two elements left") {
+        assert(list.removeAt(0) == item3);
+
+        assert(list.size() == 2);
+        assert(list.elementAt(0) == item2);
+        assert(list.elementAt(1) == item1);
+    }
+
+    SECTION("removing an element in the middle") {
+        assert(list.removeAt(1) == item2);
+
+        assert(list.size() == 2);
+        assert(list.elementAt(0) == item3);
+        assert(list.elementAt(1) == item1);
+    }
+
+    SECTION("removing the all items in a list results in an empty list") {
+        assert(list.removeAt(0) == item3);
+        assert(list.removeAt(0) == item2);
+        assert(list.removeAt(0) == item1);
+
+        assert(list.size() == 0);
+        assert(list.isEmpty());
+        assert(list.elementAt(0) == nullptr);
+    }
+}
+
+TEST_CASE("LinkedList.insertFront", "[LinkedList][insertFront]") {
+    LinkedList list;
+
+    Kebab *item1 = new Kebab();
+    item1->addIngredient('b');
+    item1->addIngredient('p');
+    item1->addIngredient('m');
+
+    Kebab *item2 = new Kebab();
+    item2->addIngredient('m');
+    item2->addIngredient('m');
+    item2->addIngredient('m');
+
+    SECTION("inserts into an empty list") {
+        list.insertFront(item1);
+        
+        assert(list.size() == 1);
+        assert(list.elementAt(0) == item1);
+    }
+
+    SECTION("inserts into the front of the list") {
+        list.insertFront(item1);
+        list.insertFront(item2);
+
+        assert(list.size() == 2);
+        assert(list.elementAt(0) == item2);
+        assert(list.elementAt(1) == item1);
+    }
+}
+
+TEST_CASE("LinkedList.insertBack", "[LinkedList][insertBack]") {
+    LinkedList list;
+    
+    Kebab *item1 = new Kebab();
+    item1->addIngredient('b');
+    item1->addIngredient('p');
+    item1->addIngredient('m');
+
+    Kebab *item2 = new Kebab();
+    item2->addIngredient('m');
+    item2->addIngredient('m');
+    item2->addIngredient('m');
+
+    SECTION("inserts into an empty list") {
+        list.insertBack(item1);
+        
+        assert(list.size() == 1);
+        assert(list.elementAt(0) == item1);
+    }
+
+    SECTION("inserts into the back of the list") {
+        list.insertBack(item1);
+        list.insertBack(item2);
+
+        assert(list.size() == 2);
+        assert(list.elementAt(0) == item1);
+        assert(list.elementAt(1) == item2);
+    }
+}
+
+TEST_CASE("LinkedList.contains", "[LinkedList][contains]") {
+    LinkedList list;
+    
+    Kebab *item1 = new Kebab();
+    item1->addIngredient('b');
+    item1->addIngredient('p');
+    item1->addIngredient('m');
+
+    Kebab *item2 = new Kebab();
+    item2->addIngredient('m');
+    item2->addIngredient('m');
+    item2->addIngredient('m');
+
+    Kebab *item3 = new Kebab();
+    item3->addIngredient('p');
+    item3->addIngredient('m');
+    item3->addIngredient('b');
+
+    Kebab *item4 = new Kebab();
+    item4->addIngredient('s');
+    item4->addIngredient('s');
+    item4->addIngredient('s');
+
+    list.insertFront(item1);
+    list.insertFront(item2);
+
+    SECTION("finds matching kebabs") {
+        assert(list.contains(*item1));
+    }
+
+    SECTION("finds matching kebabs with ingredients in a different order") {
+        assert(list.contains(*item3));
+    }
+
+    SECTION("produces false for non-matching kebabs") {
+        assert(!list.contains(*item4));
+    }
+}
+    
+// Grill test cases need to be careful with the ingredients
+//   since we can't guarantee the order of items in student submissions
+
+TEST_CASE("Grill", "[Grill]") {
+  Grill g;
+  std::vector<std::string> kebabs;
+
+  SECTION("no kebabs on a new empty grill") {
+    kebabs = g.showKebabs();
+    assert(kebabs.size() == 0);
+  }
+}
+
+TEST_CASE("Grill.addKebab", "[Grill][addKebab]") {
+  Grill g;
+  std::vector<std::string> kebabs;
+
+  Kebab* k1 = new Kebab(); // bbb
+  Kebab* k2 = new Kebab(); // (empty)
+  Kebab* k3 = new Kebab(); // sss
+
+  k1->addIngredient('b');  k1->addIngredient('b');  k1->addIngredient('b');
+  k3->addIngredient('s');  k3->addIngredient('s');  k3->addIngredient('s');
+
+  SECTION("kebabs added in order of input") {
+    g.addKebab(*k1);
+    g.addKebab(*k2);
+    g.addKebab(*k3);
+    kebabs = g.showKebabs();
+    assert(kebabs[0] == "bbb");
+    assert(kebabs[1] == "");
+    assert(kebabs[2] == "sss");
+  }
+}
+
+TEST_CASE("Grill.swap", "[Grill][swap]") {
+  Grill g;
+  std::vector<std::string> kebabs;
+
+  Kebab* k1 = new Kebab(); // bbb
+  Kebab* k2 = new Kebab(); // (empty)
+  Kebab* k3 = new Kebab(); // sss
+
+  k1->addIngredient('b');  k1->addIngredient('b');  k1->addIngredient('b');
+  k3->addIngredient('s');  k3->addIngredient('s');  k3->addIngredient('s');
+  
+  g.addKebab(*k1);
+  g.addKebab(*k2);
+  g.addKebab(*k3);
+
+  SECTION("swap with invalid indices should be NOOP") {
+    assert(!g.swap(1, 100));
+    kebabs = g.showKebabs();
+    assert(kebabs[0] == "bbb");
+    assert(kebabs[1] == "");
+    assert(kebabs[2] == "sss");
+  }
+
+  SECTION("swap with same index should be NOOP") {
+    assert(!g.swap(2, 2));
+    kebabs = g.showKebabs();
+    assert(kebabs[0] == "bbb");
+    assert(kebabs[1] == "");
+    assert(kebabs[2] == "sss");
+  }
+
+  SECTION("swap with valid indices, pos1 < pos2") {
+    assert(g.swap(2, 3));
+    kebabs = g.showKebabs();
+    assert(kebabs[0] == "bbb");
+    assert(kebabs[1] == "sss");
+    assert(kebabs[2] == "");
+
+    assert(g.swap(1, 3));
+    kebabs = g.showKebabs();
+    assert(kebabs[0] == "");
+    assert(kebabs[1] == "sss");
+    assert(kebabs[2] == "bbb");
+
+    assert(g.swap(1, 2));
+    kebabs = g.showKebabs();
+    assert(kebabs[0] == "sss");
+    assert(kebabs[1] == "");
+    assert(kebabs[2] == "bbb");
+  }
+
+  SECTION("swap with valid indices, pos1 > pos2") {
+    assert(g.swap(3, 2));
+    kebabs = g.showKebabs();
+    assert(kebabs[0] == "bbb");
+    assert(kebabs[1] == "sss");
+    assert(kebabs[2] == "");
+
+    assert(g.swap(3, 1));
+    kebabs = g.showKebabs();
+    assert(kebabs[0] == "");
+    assert(kebabs[1] == "sss");
+    assert(kebabs[2] == "bbb");
+
+    assert(g.swap(2, 1));
+    kebabs = g.showKebabs();
+    assert(kebabs[0] == "sss");
+    assert(kebabs[1] == "");
+    assert(kebabs[2] == "bbb");
+  }
+}
+
+TEST_CASE("Grill.request invalid cases", "[Grill][request]") {
+  Grill g;
+  std::vector<std::string> kebabs;
+  Kebab* requested;
+
+  Kebab* k1 = new Kebab(); // bbb
+  Kebab* k2 = new Kebab(); // (empty)
+  Kebab* k3 = new Kebab(); // sss
+
+  k1->addIngredient('b');  k1->addIngredient('b');  k1->addIngredient('b');
+  k3->addIngredient('s');  k3->addIngredient('s');  k3->addIngredient('s');
+
+  g.addKebab(*k1);
+  g.addKebab(*k2);
+  g.addKebab(*k3);
+
+  SECTION("requesting invalid position should be NOOP") {
+    requested = g.request(100);
+    kebabs = g.showKebabs();
+    assert(requested == NULL);
+    assert(kebabs.size() == 3);
+    assert(kebabs[0] == "bbb");
+    assert(kebabs[1] == "");
+    assert(kebabs[2] == "sss");
+  }
+
+  SECTION("requesting valid position retains access to kebab and removes from grill") {
+    requested = g.request(2);
+    kebabs = g.showKebabs();
+    assert(requested == k2);
+    assert(kebabs.size() == 2);
+    assert(kebabs[0] == "bbb");
+    assert(kebabs[1] == "sss");
+  }
+}
+
+TEST_CASE("Grill.request", "[Grill][request]") {
+  Grill g;
+  std::vector<std::string> kebabs;
+  Kebab* requested;
+
+  Kebab* k1 = new Kebab(); // bbb
+  Kebab* k2 = new Kebab(); // (empty)
+  Kebab* k3 = new Kebab(); // sss
+  Kebab* k4 = new Kebab(); // ss
+
+  k1->addIngredient('b');  k1->addIngredient('b');  k1->addIngredient('b');
+  k3->addIngredient('s');  k3->addIngredient('s');  k3->addIngredient('s');
+  k4->addIngredient('s');  k4->addIngredient('s');
+
+  g.addKebab(*k1);
+  g.addKebab(*k2);
+  g.addKebab(*k3);
+  g.addKebab(*k4);
+
+  SECTION("requesting kebab with no match should be NOOP") {
+    Kebab refk;
+    refk.buildKebab("mmmmm");
+    requested = g.request(refk);
+    kebabs = g.showKebabs();
+    assert(requested == NULL);
+    assert(kebabs.size() == 4);
+    assert(kebabs[0] == "bbb");
+    assert(kebabs[1] == "");
+    assert(kebabs[2] == "sss");
+    assert(kebabs[3] == "ss");
+  }
+
+  SECTION("requesting empty ingredient returns the first kebab") {
+    Kebab refk;
+    requested = g.request(refk);
+    kebabs = g.showKebabs();
+    assert(requested == k1);
+    assert(kebabs.size() == 3);
+    assert(kebabs[0] == "");
+    assert(kebabs[1] == "sss");
+    assert(kebabs[2] == "ss");
+  }
+
+  SECTION("requesting matching ingredient returns the first match") {
+    Kebab refk;
+    refk.addIngredient('s');
+    requested = g.request(refk);
+    kebabs = g.showKebabs();
+    assert(requested == k3);
+    assert(kebabs.size() == 3);
+    assert(kebabs[0] == "bbb");
+    assert(kebabs[1] == "");
+    assert(kebabs[2] == "ss");
+  }
+}
+
+// will only test with distinct meat numbers, and only meat ingredients
+//   in case of students not preserving ingredient order
+// not concerned with whether duplicate meat numbers get swapped
+TEST_CASE("Grill.sortByMeat", "[Grill][sortByMeat]") {
+  Grill g;
+  std::vector<std::string> kebabs;
+
+  Kebab* k0 = new Kebab();
+  Kebab* k1 = new Kebab();
+  Kebab* k2 = new Kebab();
+  Kebab* k3 = new Kebab();
+  Kebab* k4 = new Kebab();
+  Kebab* k5 = new Kebab();
+  Kebab* k6 = new Kebab();
+  Kebab* k7 = new Kebab();
+  Kebab* k8 = new Kebab();
+
+  k0->addIngredient('t');
+  k1->addIngredient('b');
+  k2->addIngredient('b');  k2->addIngredient('b');
+  k3->addIngredient('b');  k3->addIngredient('b');  k3->addIngredient('b');
+  k4->addIngredient('b');  k4->addIngredient('b');
+  k4->addIngredient('b');  k4->addIngredient('b');
+  k5->addIngredient('b');  k5->addIngredient('b');  k5->addIngredient('b');
+  k5->addIngredient('b');  k5->addIngredient('b');
+  k6->addIngredient('b');  k6->addIngredient('b');  k6->addIngredient('b');
+  k6->addIngredient('b');  k6->addIngredient('b');  k6->addIngredient('b');
+  k7->addIngredient('b');  k7->addIngredient('b');  k7->addIngredient('b');
+  k7->addIngredient('b');  k7->addIngredient('b');  k7->addIngredient('b');
+  k7->addIngredient('b');
+  k8->addIngredient('b');  k8->addIngredient('b');  k8->addIngredient('b');
+  k8->addIngredient('b');  k8->addIngredient('b');  k8->addIngredient('b');
+  k8->addIngredient('b');  k8->addIngredient('b');
+
+  SECTION("sorts a grill starting in ascending order") {
+    g.addKebab(*k0);  g.addKebab(*k1);  g.addKebab(*k2);  g.addKebab(*k3);
+    g.addKebab(*k4);  g.addKebab(*k5);  g.addKebab(*k6);  g.addKebab(*k7);
+    g.addKebab(*k8);
+    g.sortByMeat();
+
+    kebabs = g.showKebabs();
+    assert(kebabs.size() == 9);
+    assert(kebabs[0] == "bbbbbbbb");
+    assert(kebabs[1] == "bbbbbbb");
+    assert(kebabs[2] == "bbbbbb");
+    assert(kebabs[3] == "bbbbb");
+    assert(kebabs[4] == "bbbb");
+    assert(kebabs[5] == "bbb");
+    assert(kebabs[6] == "bb");
+    assert(kebabs[7] == "b");
+    assert(kebabs[8] == "t");
+  }
+
+  SECTION("sorts a grill starting in descending order") {
+    g.addKebab(*k8);  g.addKebab(*k7);  g.addKebab(*k6);  g.addKebab(*k5);
+    g.addKebab(*k4);  g.addKebab(*k3);  g.addKebab(*k2);  g.addKebab(*k1);
+    g.addKebab(*k0);
+    g.sortByMeat();
+
+    kebabs = g.showKebabs();
+    assert(kebabs.size() == 9);
+    assert(kebabs[0] == "bbbbbbbb");
+    assert(kebabs[1] == "bbbbbbb");
+    assert(kebabs[2] == "bbbbbb");
+    assert(kebabs[3] == "bbbbb");
+    assert(kebabs[4] == "bbbb");
+    assert(kebabs[5] == "bbb");
+    assert(kebabs[6] == "bb");
+    assert(kebabs[7] == "b");
+    assert(kebabs[8] == "t");
+  }
+
+  SECTION("sorts a grill starting in arbitrary order") {
+    g.addKebab(*k4);  g.addKebab(*k8);  g.addKebab(*k1);  g.addKebab(*k7);
+    g.addKebab(*k2);  g.addKebab(*k5);  g.addKebab(*k6);  g.addKebab(*k0);
+    g.addKebab(*k3);
+    g.sortByMeat();
+
+    kebabs = g.showKebabs();
+    assert(kebabs.size() == 9);
+    assert(kebabs[0] == "bbbbbbbb");
+    assert(kebabs[1] == "bbbbbbb");
+    assert(kebabs[2] == "bbbbbb");
+    assert(kebabs[3] == "bbbbb");
+    assert(kebabs[4] == "bbbb");
+    assert(kebabs[5] == "bbb");
+    assert(kebabs[6] == "bb");
+    assert(kebabs[7] == "b");
+    assert(kebabs[8] == "t");
+  }
+}
+
